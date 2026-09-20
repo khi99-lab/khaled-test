@@ -25,7 +25,7 @@ button,textarea{font:inherit}.top{height:68px;background:var(--navy);color:#fff;
 .foot{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:9px;color:#8593a0}.foot button{border:0;background:transparent;color:#6c7d8e;cursor:pointer}
 .side{padding:16px}.side h2{font-size:15px;margin:0 0 12px}.card{border:1px solid #e1e8ef;border-radius:11px;padding:12px;margin-bottom:10px}.card h3{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6a7d90;margin:0 0 8px}.card p{font-size:11px;line-height:1.5;margin:0;color:#43586c}.status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700}.dot{width:9px;height:9px;border-radius:50%;background:#aebbc7}.dot.on{background:#26a56e}.answers{max-height:330px;overflow:auto}.answer{padding:8px 0;border-bottom:1px solid #edf1f5}.answer:last-child{border-bottom:0}.answer strong{display:block;font-size:9px;color:#687b8e;margin-bottom:3px}.answer span{font-size:10px;line-height:1.4;color:#405568}
 .note{font-size:9px;color:#7b8996;line-height:1.5;margin-top:8px}.repeat{border:1px solid #d4dfe9;background:#fff;border-radius:8px;padding:7px 9px;font-size:10px;font-weight:700;color:#4d6378;cursor:pointer}
-.toast{position:fixed;right:22px;bottom:22px;background:#1c2e40;color:#fff;padding:10px 13px;border-radius:9px;font-size:10px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
+.safetyAlert{margin:0 16px 12px;padding:12px 13px;border-radius:11px;border:1px solid #efbdc5;background:#fff1f3;color:#7f3340;display:flex;gap:8px;align-items:flex-start;flex-direction:column}.safetyAlert.hidden{display:none}.safetyAlert strong{font-size:11px}.safetyAlert span{font-size:10px;line-height:1.45}.safetyAlert.urgent{background:#fde8eb;border-color:#dc8794;color:#742b37}.toast{position:fixed;right:22px;bottom:22px;background:#1c2e40;color:#fff;padding:10px 13px;border-radius:9px;font-size:10px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
 @media(max-width:900px){.shell{grid-template-columns:1fr}.side{order:2}}@media(max-width:620px){.chat{height:390px}.chooser{align-items:flex-start;flex-direction:column}.modes{width:100%}.mode{flex:1}.typeRow{grid-template-columns:1fr}.send{height:44px}.bubble{max-width:90%}}
 </style>
 </head>
@@ -39,6 +39,7 @@ button,textarea{font:inherit}.top{height:68px;background:var(--navy);color:#fff;
   </div>
   <div class="bar"><div id="bar"></div></div>
   <div id="chat" class="chat"></div>
+  <div id="safetyAlert" class="safetyAlert hidden"><strong>Safety follow-up active</strong><span id="safetyAlertText">Dr. Adam is completing a focused safety assessment before continuing.</span></div>
   <div class="controls">
     <div class="chooser">
       <span>Choose how you want to answer</span>
@@ -89,6 +90,7 @@ const questions=[
 
 let index=0, mode="type", recognition=null, recognizing=false, speaking=false, sessionActive=false;
 let transcriptFinal="", silenceTimer=null, stopReason=null;
+let safetyQueue=[], activeSafetyQuestion=null, safetyAnswers={}, safetyEscalated=false;
 const responses={};
 const $=id=>document.getElementById(id);
 const chat=$("chat"), input=$("input"), talkBtn=$("talkBtn"), typeBtn=$("typeBtn"), typeRow=$("typeRow"), talkBox=$("talkBox"), transcript=$("transcript"), talkStatus=$("talkStatus"), helper=$("helper"), statusDot=$("statusDot"), sessionStatus=$("sessionStatus"), avatar=$("avatar");
@@ -97,7 +99,51 @@ function toast(t){$("toast").textContent=t;$("toast").classList.add("show");setT
 function scrollChat(){requestAnimationFrame(()=>chat.scrollTo({top:chat.scrollHeight,behavior:"smooth"}))}
 function addDoctor(t){const d=document.createElement("div");d.className="msg doctor";d.innerHTML='<div class="bubble"><span class="who">DR. ADAM</span></div>';d.querySelector(".bubble").append(document.createTextNode(t));chat.appendChild(d);scrollChat()}
 function addPatient(t){const d=document.createElement("div");d.className="msg patient";d.innerHTML='<div class="bubble"><span class="who">YOU</span></div>';d.querySelector(".bubble").append(document.createTextNode(t));chat.appendChild(d);scrollChat()}
-function current(){return questions[index]||null}
+function current(){
+ if(activeSafetyQuestion)return activeSafetyQuestion;
+ if(safetyQueue.length){activeSafetyQuestion=safetyQueue.shift();return activeSafetyQuestion}
+ return questions[index]||null
+}
+function isNegative(text){
+ const t=text.trim().toLowerCase();
+ return /^(no|nope|nah|never|not really|i do not|i don't|i have not|i haven't|none)\b/.test(t) || /\b(no suicidal thoughts|not suicidal|never suicidal|no thoughts of suicide)\b/.test(t);
+}
+function isPositive(text){
+ const t=text.trim().toLowerCase();
+ if(isNegative(t))return false;
+ return /^(yes|yeah|yep|sometimes|occasionally|i do|i have|i am|i'm)\b/.test(t) || /\b(suicidal|suicide|better off dead|hurt myself|self harm|self-harm|thoughts of dying)\b/.test(t);
+}
+function startSafetyBranch(){
+ safetyAnswers={};safetyEscalated=false;
+ safetyQueue=[
+   {id:"safety_current",section:"Safety follow-up",q:"Thank you for telling me. Are you having thoughts of suicide right now?"},
+   {id:"safety_plan",section:"Safety follow-up",q:"Have you made a specific plan to harm yourself?"},
+   {id:"safety_intent",section:"Safety follow-up",q:"Do you feel you might act on these thoughts, or do you intend to act on them?"},
+   {id:"safety_access",section:"Safety follow-up",q:"Do you currently have access to anything you might use to harm yourself?"},
+   {id:"safety_history",section:"Safety follow-up",q:"Have you ever attempted suicide or seriously harmed yourself before?"},
+   {id:"safety_protective",section:"Safety follow-up",q:"What has helped stop you from acting on these thoughts, and who could you reach out to for support right now?"}
+ ];
+ $("safetyAlert").classList.remove("hidden");
+ $("safetyAlert").classList.remove("urgent");
+ $("safetyAlertText").textContent="Dr. Adam is completing a focused safety assessment before continuing.";
+}
+function safetyHighRisk(){
+ const currentYes=isPositive(safetyAnswers.safety_current||"");
+ const planYes=isPositive(safetyAnswers.safety_plan||"");
+ const intentYes=isPositive(safetyAnswers.safety_intent||"");
+ const accessYes=isPositive(safetyAnswers.safety_access||"");
+ return currentYes && (intentYes || (planYes && accessYes));
+}
+function showSafetyEscalation(){
+ safetyEscalated=true;sessionActive=false;stopRecognition("safety");speechSynthesis?.cancel?.();
+ $("safetyAlert").classList.remove("hidden");$("safetyAlert").classList.add("urgent");
+ $("safetyAlertText").textContent="Urgent safety review required. This demo pauses the routine intake here. In a real U.S. clinical workflow, connect the patient immediately with a clinician and follow the configured emergency protocol; if there is imminent danger, call 911 or 988.";
+ addDoctor("Thank you for being honest with me. I’m going to pause the routine intake because your safety is the priority. A clinician needs to review this with you now.");
+ sessionStatus.textContent="Safety review required";statusDot.classList.remove("on");
+ helper.textContent="Routine intake paused for safety review.";
+ typeRow.classList.add("hidden");talkBox.classList.add("hidden");
+}
+
 function updateUI(){
  const q=current(); $("sectionName").textContent=q?q.section:"Complete";
  $("bar").style.width=Math.round((index/questions.length)*100)+"%";
@@ -179,8 +225,44 @@ function initRecognition(){
  };
 }
 function submit(text){
- const q=current(); if(!q||!text)return;
- responses[q.id]={section:q.section,answer:text};addPatient(text);input.value="";transcriptFinal="";transcript.textContent="Your spoken answer will appear here.";index++;updateUI();
+ const q=current(); if(!q||!text||safetyEscalated)return;
+ addPatient(text);input.value="";transcriptFinal="";transcript.textContent="Your spoken answer will appear here.";
+
+ if(q.id==="safety"){
+   responses[q.id]={section:q.section,answer:text};
+   if(isPositive(text)){
+     startSafetyBranch();
+     activeSafetyQuestion=null;
+     updateUI();
+     setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+     return;
+   }
+   index++;
+   updateUI();
+   setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+   return;
+ }
+
+ if(q.id.startsWith("safety_")){
+   safetyAnswers[q.id]=text;
+   responses[q.id]={section:q.section,answer:text};
+   activeSafetyQuestion=null;
+   if(q.id==="safety_access" && safetyHighRisk()){
+     updateUI();setTimeout(showSafetyEscalation,250);return;
+   }
+   if(q.id==="safety_protective"){
+     $("safetyAlertText").textContent="Safety follow-up completed. This response should still be flagged for clinician review.";
+     index++; // move past the original safety item to Life context
+     updateUI();
+     setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+     return;
+   }
+   updateUI();
+   setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+   return;
+ }
+
+ responses[q.id]={section:q.section,answer:text};index++;updateUI();
  setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
 }
 function sendTyped(){const t=input.value.trim();if(!t)return;submit(t)}
@@ -196,6 +278,7 @@ function setMode(next){
  }
 }
 function finish(){
+ if(safetyEscalated)return;
  sessionActive=false;stopRecognition("finish");speechSynthesis?.cancel?.();statusDot.classList.remove("on");sessionStatus.textContent="Complete";$("bar").style.width="100%";addDoctor("Thank you. That completes this demo intake. Your answers are ready for clinician review.");updateUI()
 }
 $("sendBtn").onclick=sendTyped;
