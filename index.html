@@ -2,209 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EMW Clinical Workspace — Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Elite Mind Intake — Conversational Demo</title>
+  <meta name="description" content="Conversational psychiatric intake assessment prototype with a virtual clinician." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app">
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">E</div>
+        <div class="brand-mark">EM</div>
         <div>
-          <div class="brand-name">EMW Clinical Workspace</div>
-          <div class="brand-sub">Epic-inspired interface demo</div>
+          <strong>Elite Mind Intake</strong>
+          <span>Conversational assessment prototype</span>
         </div>
       </div>
-      <div class="top-search">
-        <span>⌕</span>
-        <input aria-label="Search" placeholder="Search chart, patient, order, message…" />
-        <kbd>⌘ K</kbd>
-      </div>
-      <div class="top-actions">
-        <button class="icon-btn" title="Inbox">✉<span class="badge">4</span></button>
-        <button class="icon-btn" title="Alerts">◔<span class="badge badge-warn">2</span></button>
-        <div class="clinician-chip">
-          <div class="avatar">KH</div>
-          <div><strong>Khaled H.</strong><span>PMHNP • Anaheim</span></div>
-        </div>
+      <div class="visit-meta">
+        <span class="status"><i></i> Secure demo</span>
+        <span>New psychiatric intake</span>
+        <span class="demo-pill">Synthetic data only</span>
       </div>
     </header>
 
-    <aside class="left-rail">
-      <button class="rail-item active" data-view="schedule"><span>▦</span><em>Schedule</em></button>
-      <button class="rail-item" data-view="inbox"><span>✉</span><em>In Basket</em></button>
-      <button class="rail-item" data-view="patients"><span>♙</span><em>Patients</em></button>
-      <button class="rail-item" data-view="orders"><span>☷</span><em>Orders</em></button>
-      <button class="rail-item" data-view="reports"><span>▤</span><em>Reports</em></button>
-      <div class="rail-spacer"></div>
-      <button class="rail-item" data-view="settings"><span>⚙</span><em>Settings</em></button>
-    </aside>
-
-    <main>
-      <section class="patient-banner">
-        <div class="patient-main">
-          <div class="patient-avatar">AM</div>
-          <div>
-            <div class="patient-line">
-              <h1>Amanda Martinez</h1>
-              <span class="pill neutral">MRN 00492811</span>
-              <span class="pill blue">Established</span>
+    <main class="layout">
+      <section class="conversation-panel">
+        <div class="clinician-stage">
+          <div class="clinician-visual" id="clinicianVisual" aria-label="Virtual clinician avatar">
+            <div class="halo"></div>
+            <div class="head">
+              <div class="hair"></div>
+              <div class="face">
+                <div class="brows"><i></i><i></i></div>
+                <div class="eyes"><i></i><i></i></div>
+                <div class="nose"></div>
+                <div class="mouth"></div>
+              </div>
+              <div class="neck"></div>
+              <div class="coat"></div>
             </div>
-            <p>34 y/o • Female • DOB 02/14/1992 • She/Her • English</p>
+          </div>
+          <div class="clinician-title">
+            <h1>Dr. Maya</h1>
+            <p>Virtual intake guide</p>
+            <div class="voice-controls">
+              <button id="repeatBtn" class="mini-btn" title="Repeat question">🔊 Repeat</button>
+              <label class="toggle">
+                <input type="checkbox" id="autoSpeak" checked />
+                <span></span>
+                Auto voice
+              </label>
+            </div>
           </div>
         </div>
-        <div class="patient-meta">
-          <div><span>Primary</span><strong>MDD, recurrent</strong></div>
-          <div><span>Last visit</span><strong>Sep 03, 2026</strong></div>
-          <div><span>Next appt</span><strong>Today • 8:00 AM</strong></div>
+
+        <div class="conversation-shell">
+          <div class="progress-wrap">
+            <div class="progress-copy">
+              <span id="sectionLabel">Getting started</span>
+              <strong id="progressText">1 of 24</strong>
+            </div>
+            <div class="progress-track"><div id="progressBar"></div></div>
+          </div>
+
+          <div id="chat" class="chat" aria-live="polite"></div>
+
+          <div id="safetyBanner" class="safety-banner hidden">
+            <div class="safety-icon">!</div>
+            <div>
+              <strong>Safety follow-up activated</strong>
+              <p>This demo detected language that may require immediate clinical review. A real product should route this response to a configured safety workflow and clinician.</p>
+            </div>
+          </div>
+
+          <div class="composer">
+            <div class="composer-row">
+              <button id="micBtn" class="mic-btn" title="Answer by voice" aria-label="Answer by voice">🎙</button>
+              <textarea id="answerInput" rows="2" placeholder="Answer naturally, just like you are talking to a clinician…"></textarea>
+              <button id="sendBtn" class="send-btn">Send</button>
+            </div>
+            <div class="composer-help">
+              <span id="voiceStatus">Type your answer or use the microphone.</span>
+              <button id="skipBtn">Skip for now</button>
+            </div>
+          </div>
         </div>
-        <div class="banner-actions">
-          <button class="btn btn-ghost">⋯ More</button>
-          <button class="btn btn-primary">+ New encounter</button>
+
+        <div class="disclaimer">
+          Demo only — not a diagnosis, emergency service, or substitute for clinician review. The virtual clinician does not independently make treatment decisions.
         </div>
       </section>
 
-      <section class="workspace">
-        <nav class="chart-tabs">
-          <button class="chart-tab active" data-tab="summary">Summary</button>
-          <button class="chart-tab" data-tab="notes">Notes</button>
-          <button class="chart-tab" data-tab="meds">Medications</button>
-          <button class="chart-tab" data-tab="orders">Orders</button>
-          <button class="chart-tab" data-tab="results">Results</button>
-          <button class="chart-tab" data-tab="history">History</button>
-          <button class="chart-tab" data-tab="media">Media</button>
-        </nav>
-
-        <div class="content-grid">
-          <section class="center-column">
-            <div class="page-head">
-              <div>
-                <h2>Visit Summary</h2>
-                <p>Psychiatry follow-up • Telehealth • 30 minutes</p>
-              </div>
-              <div class="status-dot"><i></i> Chart open</div>
-            </div>
-
-            <div class="cards two-up">
-              <article class="card">
-                <div class="card-head"><h3>Vitals</h3><button>Edit</button></div>
-                <div class="metric-row">
-                  <div><span>BP</span><strong>118/74</strong><small>mmHg</small></div>
-                  <div><span>HR</span><strong>72</strong><small>bpm</small></div>
-                  <div><span>Wt</span><strong>146</strong><small>lb</small></div>
-                  <div><span>BMI</span><strong>24.3</strong><small>normal</small></div>
-                </div>
-              </article>
-              <article class="card">
-                <div class="card-head"><h3>Safety</h3><button>Review</button></div>
-                <div class="safety-row">
-                  <div class="safety-icon safe">✓</div>
-                  <div><strong>No acute safety concern</strong><p>Denies SI/HI. No psychosis. Protective factors documented.</p></div>
-                </div>
-              </article>
-            </div>
-
-            <article class="card">
-              <div class="card-head"><h3>Chief concern & interval history</h3><div class="tag">Draft</div></div>
-              <div class="note-box">
-                <p><strong>Chief concern:</strong> “I’m doing better, but I’m still waking up around 3 AM.”</p>
-                <p>Patient reports improved daytime mood and functioning since last visit. Anxiety is less frequent. Sleep remains fragmented with early-morning awakening 3–4 nights/week. Appetite stable. No recent panic attacks. Denies medication side effects.</p>
-              </div>
-              <div class="quick-actions">
-                <button>✦ Summarize</button><button>+ Add smart phrase</button><button>▣ Pull forward</button>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-head"><h3>Assessments</h3><button>View flowsheet</button></div>
-              <div class="assessment-list">
-                <div class="assessment">
-                  <div class="score-ring mild">8</div>
-                  <div><strong>PHQ-9</strong><span>Mild depression</span></div>
-                  <div class="trend down">↓ 5 pts</div>
-                </div>
-                <div class="assessment">
-                  <div class="score-ring low">6</div>
-                  <div><strong>GAD-7</strong><span>Mild anxiety</span></div>
-                  <div class="trend down">↓ 3 pts</div>
-                </div>
-                <div class="assessment">
-                  <div class="score-ring neutral-ring">0</div>
-                  <div><strong>C-SSRS Screen</strong><span>No current suicidal ideation</span></div>
-                  <div class="trend stable">Stable</div>
-                </div>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-head"><h3>Assessment & Plan</h3><button>Open note composer</button></div>
-              <div class="problem">
-                <div class="problem-num">1</div>
-                <div>
-                  <div class="problem-title"><strong>Major depressive disorder, recurrent, moderate</strong><span>Improving</span></div>
-                  <ul>
-                    <li>Continue sertraline 100 mg PO daily.</li>
-                    <li>Continue psychotherapy; reinforce behavioral activation.</li>
-                    <li>Monitor sleep and mood; repeat PHQ-9 next visit.</li>
-                  </ul>
-                </div>
-              </div>
-              <div class="problem">
-                <div class="problem-num">2</div>
-                <div>
-                  <div class="problem-title"><strong>Generalized anxiety disorder</strong><span>Improving</span></div>
-                  <ul>
-                    <li>Continue current treatment; review coping strategies.</li>
-                    <li>No medication changes today.</li>
-                  </ul>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          <aside class="right-column">
-            <article class="side-card">
-              <div class="side-card-head"><h3>Today</h3><span>8:00 AM</span></div>
-              <div class="appointment-block">
-                <strong>Psych follow-up</strong>
-                <span>Telehealth • Confirmed</span>
-                <button class="btn btn-primary full">Start visit</button>
-              </div>
-            </article>
-
-            <article class="side-card">
-              <div class="side-card-head"><h3>Medications</h3><button>+ Add</button></div>
-              <div class="med-item"><div><strong>Sertraline</strong><span>100 mg daily</span></div><span class="pill green">Active</span></div>
-              <div class="med-item"><div><strong>Hydroxyzine</strong><span>25 mg PRN anxiety</span></div><span class="pill green">Active</span></div>
-              <div class="med-item"><div><strong>Melatonin</strong><span>3 mg HS PRN</span></div><span class="pill neutral">OTC</span></div>
-            </article>
-
-            <article class="side-card">
-              <div class="side-card-head"><h3>Allergies</h3><button>Review</button></div>
-              <div class="allergy">Penicillin <span>Rash</span></div>
-            </article>
-
-            <article class="side-card">
-              <div class="side-card-head"><h3>Care gaps</h3><span class="count">2</span></div>
-              <label class="gap"><input type="checkbox"> Annual metabolic labs due</label>
-              <label class="gap"><input type="checkbox"> PCP coordination consent</label>
-            </article>
-
-            <article class="side-card sticky-note">
-              <div class="side-card-head"><h3>Sticky note</h3><button id="editSticky">Edit</button></div>
-              <p id="stickyText">Prefers morning appointments. Pharmacy: CVS on Chapman Ave.</p>
-            </article>
-          </aside>
+      <aside class="intake-panel">
+        <div class="side-head">
+          <div>
+            <span class="eyebrow">LIVE STRUCTURED CAPTURE</span>
+            <h2>Intake Workspace</h2>
+          </div>
+          <div class="completion" id="completionPct">0%</div>
         </div>
-      </section>
+
+        <section class="side-card">
+          <h3>Current section</h3>
+          <div class="section-row">
+            <div class="section-icon">◎</div>
+            <div>
+              <strong id="currentSection">Getting started</strong>
+              <span id="currentGoal">Introduction and consent</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-card">
+          <div class="card-title-row">
+            <h3>Clinical domains</h3>
+            <span id="domainCount">0/12 captured</span>
+          </div>
+          <div id="domainGrid" class="domain-grid"></div>
+        </section>
+
+        <section class="side-card">
+          <div class="card-title-row">
+            <h3>Structured snapshot</h3>
+            <button id="copySummaryBtn" class="text-btn">Copy</button>
+          </div>
+          <div id="snapshot" class="snapshot empty">Responses will be organized here as the conversation progresses.</div>
+        </section>
+
+        <section class="side-card">
+          <div class="card-title-row">
+            <h3>Conversation controls</h3>
+            <button id="restartBtn" class="text-btn danger">Restart</button>
+          </div>
+          <div class="control-list">
+            <label><input type="checkbox" id="naturalTransitions" checked> Natural transition phrases</label>
+            <label><input type="checkbox" id="showProgress" checked> Show progress</label>
+            <label><input type="checkbox" id="adaptiveFollowups" checked> Adaptive follow-up questions</label>
+          </div>
+        </section>
+      </aside>
     </main>
   </div>
 
   <div id="toast" class="toast">Saved</div>
+
+  <template id="doctorMessageTemplate">
+    <div class="message doctor-message">
+      <div class="bubble">
+        <span class="speaker">Dr. Maya</span>
+        <p></p>
+      </div>
+    </div>
+  </template>
+
+  <template id="patientMessageTemplate">
+    <div class="message patient-message">
+      <div class="bubble">
+        <span class="speaker">You</span>
+        <p></p>
+      </div>
+    </div>
+  </template>
+
   <script src="./app.js"></script>
 </body>
 </html>
