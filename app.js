@@ -17,7 +17,7 @@ const sections = {
 };
 
 const questions = [
-  {id:"consent",section:"intro",domain:"Consent",q:"Hi, I’m Dr. Maya. I’ll guide you through your intake one question at a time. You can answer in your own words, and you can skip anything you’re not ready to answer. Is it okay to begin?"},
+  {id:"consent",section:"intro",domain:"Consent",q:"Hi, I’m Dr. Adam. I’ll guide you through your intake one question at a time. You can answer in your own words, and you can skip anything you’re not ready to answer. Is it okay to begin?"},
   {id:"reason",section:"concern",domain:"Chief concern",q:"To start, what brings you in today, and what would you most like help with?"},
   {id:"onset",section:"concern",domain:"HPI",q:"When did you first notice this becoming a problem, and has it been getting better, worse, or staying about the same?"},
   {id:"function",section:"concern",domain:"Functioning",q:"How is this affecting your day-to-day life — for example work, school, relationships, parenting, or taking care of yourself?"},
@@ -49,7 +49,8 @@ const state={index:0,answers:{},extra:[],finished:false,currentQuestion:null};
 const chat=document.getElementById("chat"), input=document.getElementById("answerInput"), sendBtn=document.getElementById("sendBtn"), micBtn=document.getElementById("micBtn"), voiceStatus=document.getElementById("voiceStatus"), safetyBanner=document.getElementById("safetyBanner"), clinicianVisual=document.getElementById("clinicianVisual");
 const progressBar=document.getElementById("progressBar"), progressText=document.getElementById("progressText"), sectionLabel=document.getElementById("sectionLabel"), completionPct=document.getElementById("completionPct"), currentSection=document.getElementById("currentSection"), currentGoal=document.getElementById("currentGoal"), domainGrid=document.getElementById("domainGrid"), domainCount=document.getElementById("domainCount"), snapshot=document.getElementById("snapshot");
 const toast=document.getElementById("toast");
-let recognition=null, recognizing=false;
+const startVoiceBtn=document.getElementById("startVoiceBtn");
+let recognition=null, recognizing=false, voiceUnlocked=false;
 
 function showToast(msg){toast.textContent=msg;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1500)}
 function escapeText(v){return String(v||"").replace(/[<>]/g,"")}
@@ -92,20 +93,32 @@ function askNext(){
   const text=prefix+q.q;
   addDoctor(text);
   updateUI();
-  if(document.getElementById("autoSpeak").checked) speak(text);
+  if(document.getElementById("autoSpeak").checked && voiceUnlocked) speak(text);
 }
 
+function selectBritishMaleVoice(){
+  const voices=speechSynthesis.getVoices();
+  const ranked=[
+    /Daniel/i,/Arthur/i,/Oliver/i,/Ryan/i,/George/i,/Google UK English Male/i,/Microsoft.*(Ryan|George|Thomas|Oliver)/i
+  ];
+  for(const pattern of ranked){
+    const found=voices.find(v=>pattern.test(v.name) && /^en-GB/i.test(v.lang||""));
+    if(found)return found;
+  }
+  return voices.find(v=>/^en-GB/i.test(v.lang||"") && !/female|samantha|serena|karen/i.test(v.name))
+      || voices.find(v=>/^en-GB/i.test(v.lang||""))
+      || voices.find(v=>/^en/i.test(v.lang||""));
+}
 function speak(text){
   if(!("speechSynthesis" in window)){showToast("Voice playback is not supported in this browser");return}
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.rate=.96;u.pitch=1.02;u.lang="en-US";
-  const voices=speechSynthesis.getVoices();
-  const preferred=voices.find(v=>/Samantha|Ava|Allison|Google US English|Microsoft.*Female/i.test(v.name))||voices.find(v=>v.lang==="en-US");
+  u.rate=.94;u.pitch=.92;u.lang="en-GB";
+  const preferred=selectBritishMaleVoice();
   if(preferred)u.voice=preferred;
-  u.onstart=()=>clinicianVisual.classList.add("speaking");
-  u.onend=()=>clinicianVisual.classList.remove("speaking");
-  u.onerror=()=>clinicianVisual.classList.remove("speaking");
+  u.onstart=()=>{clinicianVisual.classList.add("speaking");voiceStatus.textContent="Dr. Adam is speaking…"};
+  u.onend=()=>{clinicianVisual.classList.remove("speaking");voiceStatus.textContent="Your turn — answer by voice or typing."};
+  u.onerror=()=>{clinicianVisual.classList.remove("speaking");voiceStatus.textContent="Audio could not play. Tap Repeat to try again."};
   speechSynthesis.speak(u);
 }
 
@@ -229,7 +242,15 @@ function initRecognition(){
 sendBtn.addEventListener("click",()=>submitAnswer(false));
 document.getElementById("skipBtn").addEventListener("click",()=>submitAnswer(true));
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitAnswer(false)}});
-document.getElementById("repeatBtn").addEventListener("click",()=>{if(state.currentQuestion)speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q)});
+startVoiceBtn.addEventListener("click",()=>{
+  voiceUnlocked=true;
+  startVoiceBtn.textContent="✓ Spoken intake on";
+  startVoiceBtn.classList.add("active");
+  if(state.currentQuestion){
+    speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q);
+  }
+});
+document.getElementById("repeatBtn").addEventListener("click",()=>{voiceUnlocked=true;if(state.currentQuestion)speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q)});
 document.getElementById("restartBtn").addEventListener("click",restart);
 document.getElementById("copySummaryBtn").addEventListener("click",async()=>{const s=buildSummary();if(!s){showToast("No responses yet");return}try{await navigator.clipboard.writeText(s);showToast("Summary copied")}catch{showToast("Copy unavailable")}});
 document.getElementById("showProgress").addEventListener("change",updateUI);
