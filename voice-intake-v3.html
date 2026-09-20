@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Elite Mind Intake — Voice Demo v3</title>
+<style>
+:root{--navy:#102b46;--blue:#3f68df;--green:#16865e;--bg:#eef4f9;--line:#d9e3ed;--text:#172436;--muted:#6d7e90}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
+button,textarea{font:inherit}.top{height:68px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px}
+.brand{font-weight:800}.brand small{display:block;font-size:10px;color:#bfd0e0;margin-top:3px;font-weight:500}
+.shell{max-width:1120px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px}
+.main,.side{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 44px rgba(20,50,80,.08)}
+.main{overflow:hidden}.head{padding:16px 18px;border-bottom:1px solid #e8eef4;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.doc{display:flex;align-items:center;gap:12px}.avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(145deg,#dfefff,#bad7f3);display:grid;place-items:center;font-weight:900;color:#275b87;font-size:18px;position:relative}
+.avatar.speaking:after{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid #74aee0;animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.05);opacity:.4}}
+.doc strong,.doc span{display:block}.doc span{font-size:10px;color:var(--muted);margin-top:3px}
+.progress{font-size:11px;color:var(--muted);font-weight:700}.bar{height:5px;background:#e9eff5}.bar>div{height:100%;width:0;background:linear-gradient(90deg,#3f68df,#46b4d8);transition:.3s}
+.chat{height:430px;overflow:auto;padding:20px;background:linear-gradient(#fff,#fbfdff)}
+.msg{display:flex;margin-bottom:14px}.bubble{max-width:78%;padding:11px 13px;border-radius:14px;font-size:13px;line-height:1.55}.doctor{justify-content:flex-start}.doctor .bubble{background:#edf5ff;border:1px solid #d4e6fa;border-bottom-left-radius:4px}.patient{justify-content:flex-end}.patient .bubble{background:#173e61;color:#fff;border-bottom-right-radius:4px}.who{display:block;font-size:9px;font-weight:900;letter-spacing:.3px;margin-bottom:3px;color:#3f68a0}.patient .who{color:#bed7eb}
+.controls{border-top:1px solid #e6edf4;padding:14px 16px;background:#fff}.chooser{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}.chooser>span{font-size:11px;font-weight:800;color:#52677c}
+.modes{display:flex;gap:7px}.mode{border:1px solid #ccd8e4;background:#fff;border-radius:999px;padding:8px 14px;font-size:11px;font-weight:800;color:#52677c;cursor:pointer}.mode.active{background:var(--navy);color:#fff;border-color:var(--navy)}#talkBtn.active{background:var(--green);border-color:var(--green)}
+.typeRow{display:grid;grid-template-columns:1fr auto;gap:9px}.typeRow.hidden,.talkBox.hidden{display:none}.typeRow textarea{resize:none;border:1px solid #cbd7e3;border-radius:12px;padding:12px;min-height:54px;outline:none}.typeRow textarea:focus{border-color:#7ba8da;box-shadow:0 0 0 3px rgba(63,104,223,.08)}.send{border:0;border-radius:11px;background:var(--blue);color:#fff;font-weight:800;padding:0 18px;cursor:pointer}
+.talkBox{border:1px solid #cde5d9;background:#f3fbf7;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px}.orb{width:48px;height:48px;border-radius:50%;background:#dff2e9;display:grid;place-items:center;font-size:21px;flex:0 0 auto}.talkBox.listening .orb{animation:pulse 1s infinite}.talkCopy{min-width:0;flex:1}.talkCopy strong,.talkCopy span{display:block}.talkCopy strong{font-size:12px}.talkCopy span{font-size:10px;color:#617a6d;margin-top:3px}.transcript{margin-top:8px;background:#fff;border:1px solid #d9ebe2;border-radius:8px;padding:8px 10px;min-height:36px;font-size:11px;color:#52677c;line-height:1.45}
+.foot{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:9px;color:#8593a0}.foot button{border:0;background:transparent;color:#6c7d8e;cursor:pointer}
+.side{padding:16px}.side h2{font-size:15px;margin:0 0 12px}.card{border:1px solid #e1e8ef;border-radius:11px;padding:12px;margin-bottom:10px}.card h3{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#6a7d90;margin:0 0 8px}.card p{font-size:11px;line-height:1.5;margin:0;color:#43586c}.status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700}.dot{width:9px;height:9px;border-radius:50%;background:#aebbc7}.dot.on{background:#26a56e}.answers{max-height:330px;overflow:auto}.answer{padding:8px 0;border-bottom:1px solid #edf1f5}.answer:last-child{border-bottom:0}.answer strong{display:block;font-size:9px;color:#687b8e;margin-bottom:3px}.answer span{font-size:10px;line-height:1.4;color:#405568}
+.note{font-size:9px;color:#7b8996;line-height:1.5;margin-top:8px}.repeat{border:1px solid #d4dfe9;background:#fff;border-radius:8px;padding:7px 9px;font-size:10px;font-weight:700;color:#4d6378;cursor:pointer}
+.safetyAlert{margin:0 16px 12px;padding:13px 14px;border-radius:11px;border:1px solid #efbdc5;background:#fff1f3;color:#7f3340;display:flex;gap:8px;align-items:flex-start;flex-direction:column}.safetyAlert.hidden{display:none}.safetyAlert strong{font-size:12px}.safetyAlert span{font-size:10px;line-height:1.5}.safetyAlert.urgent{background:#fde8eb;border:2px solid #cf5567;color:#742b37}.crisisActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin-top:3px}.crisisBtn{text-decoration:none;border-radius:8px;padding:8px 11px;font-size:10px;font-weight:900}.crisisBtn.crisis{background:#6b3bd1;color:#fff}.crisisBtn.emergency{background:#c73d4f;color:#fff}.edText{flex:1;min-width:220px;font-weight:700}.toast{position:fixed;right:22px;bottom:22px;background:#1c2e40;color:#fff;padding:10px 13px;border-radius:9px;font-size:10px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.side{order:2}}@media(max-width:620px){.chat{height:390px}.chooser{align-items:flex-start;flex-direction:column}.modes{width:100%}.mode{flex:1}.typeRow{grid-template-columns:1fr}.send{height:44px}.bubble{max-width:90%}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand">Elite Mind Intake<small>Voice interaction prototype v3</small></div><div style="font-size:10px;color:#c8d8e7">Synthetic demo • No PHI</div></header>
+<div class="shell">
+<section class="main">
+  <div class="head">
+    <div class="doc"><div id="avatar" class="avatar">DA</div><div><strong>Dr. Adam</strong><span>Virtual intake guide • British male voice</span></div></div>
+    <div><button id="repeatBtn" class="repeat">🔊 Repeat</button></div>
+  </div>
+  <div class="bar"><div id="bar"></div></div>
+  <div id="chat" class="chat"></div>
+  <div id="safetyAlert" class="safetyAlert hidden">
+    <strong id="safetyTitle">Safety follow-up active</strong>
+    <span id="safetyAlertText">Dr. Adam is completing a focused safety assessment before continuing.</span>
+    <div id="crisisActions" class="crisisActions">
+      <a href="tel:988" class="crisisBtn crisis">Call / Text 988</a>
+      <a href="tel:911" class="crisisBtn emergency">Call 911</a>
+      <span class="edText">If you may act on these thoughts or cannot stay safe, go to the nearest emergency department now.</span>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="chooser">
+      <span>Choose how you want to answer</span>
+      <div class="modes"><button id="talkBtn" class="mode">🎙 Talk</button><button id="typeBtn" class="mode active">⌨ Type</button></div>
+    </div>
+    <div id="typeRow" class="typeRow">
+      <textarea id="input" placeholder="Type your answer here…"></textarea>
+      <button id="sendBtn" class="send">Send</button>
+    </div>
+    <div id="talkBox" class="talkBox hidden">
+      <div class="orb">🎙</div>
+      <div class="talkCopy">
+        <strong id="talkTitle">Hands-free talk mode</strong>
+        <span id="talkStatus">Dr. Adam will speak, then listen automatically. No Send button.</span>
+        <div id="transcript" class="transcript">Your spoken answer will appear here.</div>
+      </div>
+    </div>
+    <div class="foot"><span id="helper">Type normally and press Send, or choose Talk once for a hands-free conversation.</span><button id="skipBtn">Skip</button></div>
+  </div>
+</section>
+<aside class="side">
+  <h2>Intake capture</h2>
+  <div class="card"><h3>Session</h3><div class="status"><span id="statusDot" class="dot"></span><span id="sessionStatus">Type mode</span></div></div>
+  <div class="card"><h3>Current section</h3><p id="sectionName">Getting started</p></div>
+  <div class="card"><h3>Captured responses</h3><div id="answers" class="answers"><p>No answers yet.</p></div></div>
+  <div class="note">Talk mode is a browser-based demo. Production voice will later use a dedicated realtime audio stack.</div>
+</aside>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+const questions=[
+{id:"consent",section:"Getting started",q:"Hi, I’m Dr. Adam. I’ll guide you through your intake one question at a time. You can answer in your own words. Is it okay to begin?"},
+{id:"reason",section:"Reason for visit",q:"What brings you in today, and what would you most like help with?"},
+{id:"onset",section:"Reason for visit",q:"When did this start becoming a problem, and has it been getting better, worse, or staying about the same?"},
+{id:"mood",section:"Mood",q:"Over the last couple of weeks, how has your mood been most days?"},
+{id:"anxiety",section:"Anxiety",q:"How much anxiety or worry have you been dealing with lately, and what tends to trigger it?"},
+{id:"sleep",section:"Sleep",q:"Tell me about your sleep. Are you having trouble falling asleep, staying asleep, waking too early, or sleeping too much?"},
+{id:"mania",section:"Mood elevation",q:"Have there ever been periods when you felt unusually energized or up, needed much less sleep, had racing thoughts, or became unusually impulsive?"},
+{id:"psychosis",section:"Perception and thought",q:"Have you ever heard or seen things other people could not, or felt people were watching or trying to harm you when others did not share that concern?"},
+{id:"trauma",section:"Trauma",q:"Have you experienced anything traumatic or deeply distressing that still affects you now? You do not need to give details you do not want to share."},
+{id:"substances",section:"Substances",q:"Do you use alcohol, nicotine, cannabis, or any other substances? If yes, tell me how often."},
+{id:"treatment",section:"Treatment history",q:"Have you had mental health treatment or psychiatric medications before? What was helpful or not helpful?"},
+{id:"medical",section:"Medical history",q:"Do you have any medical conditions, medication allergies, or other health issues I should know about?"},
+{id:"safety",section:"Safety",q:"I ask everyone this directly: recently, have you had thoughts of hurting yourself, thoughts of suicide, or thoughts that you would be better off dead?"},
+{id:"social",section:"Life context",q:"Who do you live with, who can you rely on, and what is your current work or school situation?"},
+{id:"goals",section:"Goals",q:"If treatment goes well, what changes would you most hope to notice over the next few months?"}
+];
+
+let index=0, mode="type", recognition=null, recognizing=false, speaking=false, sessionActive=false;
+let transcriptFinal="", silenceTimer=null, stopReason=null;
+let safetyQueue=[], activeSafetyQuestion=null, safetyAnswers={}, safetyEscalated=false;
+const responses={};
+const $=id=>document.getElementById(id);
+const chat=$("chat"), input=$("input"), talkBtn=$("talkBtn"), typeBtn=$("typeBtn"), typeRow=$("typeRow"), talkBox=$("talkBox"), transcript=$("transcript"), talkStatus=$("talkStatus"), helper=$("helper"), statusDot=$("statusDot"), sessionStatus=$("sessionStatus"), avatar=$("avatar");
+
+function toast(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),1500)}
+function scrollChat(){requestAnimationFrame(()=>chat.scrollTo({top:chat.scrollHeight,behavior:"smooth"}))}
+function addDoctor(t){const d=document.createElement("div");d.className="msg doctor";d.innerHTML='<div class="bubble"><span class="who">DR. ADAM</span></div>';d.querySelector(".bubble").append(document.createTextNode(t));chat.appendChild(d);scrollChat()}
+function addPatient(t){const d=document.createElement("div");d.className="msg patient";d.innerHTML='<div class="bubble"><span class="who">YOU</span></div>';d.querySelector(".bubble").append(document.createTextNode(t));chat.appendChild(d);scrollChat()}
+function current(){
+ if(activeSafetyQuestion)return activeSafetyQuestion;
+ if(safetyQueue.length){activeSafetyQuestion=safetyQueue.shift();return activeSafetyQuestion}
+ return questions[index]||null
+}
+function isNegative(text){
+ const t=text.trim().toLowerCase();
+ return /^(no|nope|nah|never|not really|i do not|i don't|i have not|i haven't|none)\b/.test(t) || /\b(no suicidal thoughts|not suicidal|never suicidal|no thoughts of suicide)\b/.test(t);
+}
+function isPositive(text){
+ const t=text.trim().toLowerCase();
+ if(isNegative(t))return false;
+ return /^(yes|yeah|yep|sometimes|occasionally|i do|i have|i am|i'm)\b/.test(t) || /\b(suicidal|suicide|better off dead|hurt myself|self harm|self-harm|thoughts of dying)\b/.test(t);
+}
+function startSafetyBranch(){
+ safetyAnswers={};safetyEscalated=false;
+ safetyQueue=[
+   {id:"safety_current",section:"Safety follow-up",q:"Thank you for telling me. Are you having thoughts of suicide right now?"},
+   {id:"safety_plan",section:"Safety follow-up",q:"Have you made a specific plan to harm yourself?"},
+   {id:"safety_intent",section:"Safety follow-up",q:"Do you feel you might act on these thoughts, or do you intend to act on them?"},
+   {id:"safety_access",section:"Safety follow-up",q:"Do you currently have access to anything you might use to harm yourself?"},
+   {id:"safety_history",section:"Safety follow-up",q:"Have you ever attempted suicide or seriously harmed yourself before?"},
+   {id:"safety_protective",section:"Safety follow-up",q:"What has helped stop you from acting on these thoughts, and who could you reach out to for support right now?"}
+ ];
+ $("safetyAlert").classList.remove("hidden");
+ $("safetyAlert").classList.remove("urgent");
+ $("safetyTitle").textContent="Suicidal thoughts reported — safety check";
+ $("safetyAlertText").textContent="Dr. Adam will pause the routine intake and ask focused safety questions. If you are in immediate danger, may act on these thoughts, or cannot stay safe: call 911 or go to the nearest emergency department. You can also call or text 988 for immediate crisis support.";
+}
+function safetyHighRisk(){
+ const currentYes=isPositive(safetyAnswers.safety_current||"");
+ const planYes=isPositive(safetyAnswers.safety_plan||"");
+ const intentYes=isPositive(safetyAnswers.safety_intent||"");
+ const accessYes=isPositive(safetyAnswers.safety_access||"");
+ return currentYes && (intentYes || planYes || accessYes);
+}
+function showSafetyEscalation(){
+ safetyEscalated=true;sessionActive=false;stopRecognition("safety");speechSynthesis?.cancel?.();
+ $("safetyAlert").classList.remove("hidden");$("safetyAlert").classList.add("urgent");
+ $("safetyTitle").textContent="URGENT SAFETY ACTION";
+ $("safetyAlertText").textContent="The answers suggest possible immediate suicide risk. Do not continue the routine intake. If you may act on these thoughts or cannot stay safe, call 911 now or go to the nearest emergency department. You can also call or text 988 for immediate crisis support.";
+ addDoctor("Thank you for telling me. I’m stopping the routine questions because your safety comes first. If you might act on these thoughts or cannot stay safe, please call 911 or go to the nearest emergency department now. You can also call or text 988 for immediate crisis support.");
+ sessionStatus.textContent="URGENT safety review required";statusDot.classList.remove("on");
+ helper.textContent="Routine intake stopped. Immediate human clinical review required.";
+ typeRow.classList.add("hidden");talkBox.classList.add("hidden");
+}
+
+function updateUI(){
+ const q=current(); $("sectionName").textContent=q?q.section:"Complete";
+ $("bar").style.width=Math.round((index/questions.length)*100)+"%";
+ const keys=Object.keys(responses); const box=$("answers");
+ if(!keys.length){box.innerHTML="<p>No answers yet.</p>";return}
+ box.innerHTML="";
+ keys.slice().reverse().forEach(k=>{const r=responses[k];const d=document.createElement("div");d.className="answer";const s=document.createElement("strong");s.textContent=r.section;const v=document.createElement("span");v.textContent=r.answer;d.append(s,v);box.appendChild(d)})
+}
+function askCurrent(voice=false){
+ const q=current(); if(!q){finish();return}
+ addDoctor(q.q); updateUI();
+ if(voice) speak(q.q);
+}
+function chooseVoice(){
+ const voices=speechSynthesis.getVoices();
+ const patterns=[/Daniel/i,/Arthur/i,/Oliver/i,/Ryan/i,/George/i,/Google UK English Male/i];
+ for(const p of patterns){const v=voices.find(x=>p.test(x.name)&&/^en-GB/i.test(x.lang||""));if(v)return v}
+ return voices.find(x=>/^en-GB/i.test(x.lang||""))||voices.find(x=>/^en/i.test(x.lang||""));
+}
+function speak(text){
+ if(!("speechSynthesis" in window)){talkStatus.textContent="Speech playback is not supported.";startListening();return}
+ stopRecognition("doctor");
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(text);u.lang="en-GB";u.rate=.94;u.pitch=.92;const v=chooseVoice();if(v)u.voice=v;
+ u.onstart=()=>{speaking=true;avatar.classList.add("speaking");talkStatus.textContent="Dr. Adam is speaking…"};
+ u.onend=()=>{speaking=false;avatar.classList.remove("speaking");if(mode==="talk"&&sessionActive){talkStatus.textContent="Your turn — just speak.";setTimeout(startListening,300)}};
+ u.onerror=()=>{speaking=false;avatar.classList.remove("speaking");if(mode==="talk"&&sessionActive)setTimeout(startListening,300)};
+ speechSynthesis.speak(u);
+}
+function clearSilence(){if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null}}
+function armSilence(){
+ clearSilence();
+ if(mode!=="talk"||!sessionActive)return;
+ silenceTimer=setTimeout(()=>{
+   if(!input.value.trim())return;
+   stopReason="answer";
+   talkStatus.textContent="Got it — one moment…";
+   stopRecognition("answer");
+ },2400);
+}
+function startListening(){
+ if(!recognition||recognizing||speaking||mode!=="talk"||!sessionActive||!current())return;
+ stopReason=null;transcriptFinal="";input.value="";transcript.textContent="Listening…";
+ try{recognition.start()}catch(e){setTimeout(startListening,500)}
+}
+function stopRecognition(reason){
+ clearSilence(); stopReason=reason||stopReason;
+ if(recognition&&recognizing){try{recognition.stop()}catch(e){}}
+}
+function initRecognition(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){talkBtn.disabled=true;talkBtn.title="Speech recognition is not supported in this browser";return}
+ recognition=new SR();recognition.lang="en-US";recognition.interimResults=true;recognition.continuous=true;
+ recognition.onstart=()=>{recognizing=true;talkBox.classList.add("listening");statusDot.classList.add("on");sessionStatus.textContent="Talk mode — listening";talkStatus.textContent="Listening… speak naturally."};
+ recognition.onresult=e=>{
+   let interim="";
+   for(let i=e.resultIndex;i<e.results.length;i++){
+     const part=e.results[i][0].transcript.trim();
+     if(e.results[i].isFinal)transcriptFinal=(transcriptFinal+" "+part).trim(); else interim=(interim+" "+part).trim();
+   }
+   input.value=(transcriptFinal+" "+interim).trim();
+   transcript.textContent=input.value||"Listening…";
+   if(input.value.trim())armSilence();
+ };
+ recognition.onerror=e=>{
+   recognizing=false;talkBox.classList.remove("listening");
+   if(e.error==="not-allowed"||e.error==="service-not-allowed"){toast("Please allow microphone access");setMode("type");return}
+   if(mode==="talk"&&sessionActive&&!speaking)setTimeout(startListening,500);
+ };
+ recognition.onend=()=>{
+   recognizing=false;talkBox.classList.remove("listening");clearSilence();
+   if(mode!=="talk"||!sessionActive)return;
+   if(stopReason==="answer"&&input.value.trim()){const text=input.value.trim();stopReason=null;submit(text);return}
+   if(stopReason==="doctor"){stopReason=null;return}
+   if(input.value.trim()){
+      stopReason=null;submit(input.value.trim());return;
+   }
+   setTimeout(startListening,350);
+ };
+}
+function submit(text){
+ const q=current(); if(!q||!text||safetyEscalated)return;
+ addPatient(text);input.value="";transcriptFinal="";transcript.textContent="Your spoken answer will appear here.";
+
+ if(q.id==="safety"){
+   responses[q.id]={section:q.section,answer:text};
+   if(isPositive(text)){
+     startSafetyBranch();
+     activeSafetyQuestion=null;
+     updateUI();
+     addDoctor("Thank you for telling me. I’m going to pause the routine intake and ask a few important safety questions. If you feel you may act on these thoughts or cannot stay safe, call 911 or go to the nearest emergency department now. You can also call or text 988.");
+     setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},650);
+     return;
+   }
+   index++;
+   updateUI();
+   setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+   return;
+ }
+
+ if(q.id.startsWith("safety_")){
+   safetyAnswers[q.id]=text;
+   responses[q.id]={section:q.section,answer:text};
+   activeSafetyQuestion=null;
+   if((q.id==="safety_plan" || q.id==="safety_intent" || q.id==="safety_access") && safetyHighRisk()){
+     updateUI();setTimeout(showSafetyEscalation,250);return;
+   }
+   if(q.id==="safety_protective"){
+     $("safetyTitle").textContent="Safety review flag";
+     $("safetyAlertText").textContent="Focused safety questions completed. Because suicidal thoughts were reported, this intake should remain flagged for clinician review. 988 remains available by call or text; use 911 or the nearest emergency department for immediate danger.";
+     index++; // move past the original safety item to Life context
+     updateUI();
+     setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+     return;
+   }
+   updateUI();
+   setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+   return;
+ }
+
+ responses[q.id]={section:q.section,answer:text};index++;updateUI();
+ setTimeout(()=>{if(mode==="talk"&&sessionActive)askCurrent(true);else askCurrent(false)},350);
+}
+function sendTyped(){const t=input.value.trim();if(!t)return;submit(t)}
+function setMode(next){
+ mode=next;const talk=next==="talk";
+ talkBtn.classList.toggle("active",talk);typeBtn.classList.toggle("active",!talk);typeRow.classList.toggle("hidden",talk);talkBox.classList.toggle("hidden",!talk);
+ if(talk){
+   if(!recognition){toast("Talk mode is not supported in this browser");setMode("type");return}
+   sessionActive=true;statusDot.classList.add("on");sessionStatus.textContent="Talk mode — hands free";helper.textContent="Hands-free: doctor speaks → you answer → answer sends automatically → next question.";
+   const q=current();if(q)speak(q.q);
+ }else{
+   sessionActive=false;stopRecognition("mode");speechSynthesis?.cancel?.();speaking=false;avatar.classList.remove("speaking");statusDot.classList.remove("on");sessionStatus.textContent="Type mode";helper.textContent="Type your answer and press Send, or choose Talk once for a hands-free conversation.";input.value="";input.focus();
+ }
+}
+function finish(){
+ if(safetyEscalated)return;
+ sessionActive=false;stopRecognition("finish");speechSynthesis?.cancel?.();statusDot.classList.remove("on");sessionStatus.textContent="Complete";$("bar").style.width="100%";addDoctor("Thank you. That completes this demo intake. Your answers are ready for clinician review.");updateUI()
+}
+$("sendBtn").onclick=sendTyped;
+input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendTyped()}});
+$("skipBtn").onclick=()=>submit("Skipped");
+talkBtn.onclick=()=>setMode("talk");
+typeBtn.onclick=()=>setMode("type");
+$("repeatBtn").onclick=()=>{const q=current();if(q)speak(q.q)};
+initRecognition();askCurrent(false);updateUI();
+</script>
+</body>
+</html>
