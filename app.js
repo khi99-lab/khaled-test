@@ -50,7 +50,7 @@ const chat=document.getElementById("chat"), input=document.getElementById("answe
 const progressBar=document.getElementById("progressBar"), progressText=document.getElementById("progressText"), sectionLabel=document.getElementById("sectionLabel"), completionPct=document.getElementById("completionPct"), currentSection=document.getElementById("currentSection"), currentGoal=document.getElementById("currentGoal"), domainGrid=document.getElementById("domainGrid"), domainCount=document.getElementById("domainCount"), snapshot=document.getElementById("snapshot");
 const toast=document.getElementById("toast");
 const startVoiceBtn=document.getElementById("startVoiceBtn");
-let recognition=null, recognizing=false, voiceUnlocked=false;
+let recognition=null, recognizing=false, voiceUnlocked=false, sessionActive=false, isSpeaking=false, silenceTimer=null, pendingAutoSubmit=false, accumulatedTranscript="";
 
 function showToast(msg){toast.textContent=msg;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1500)}
 function escapeText(v){return String(v||"").replace(/[<>]/g,"")}
@@ -111,14 +111,29 @@ function selectBritishMaleVoice(){
 }
 function speak(text){
   if(!("speechSynthesis" in window)){showToast("Voice playback is not supported in this browser");return}
+  stopListening();
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.rate=.94;u.pitch=.92;u.lang="en-GB";
   const preferred=selectBritishMaleVoice();
   if(preferred)u.voice=preferred;
-  u.onstart=()=>{clinicianVisual.classList.add("speaking");voiceStatus.textContent="Dr. Adam is speaking…"};
-  u.onend=()=>{clinicianVisual.classList.remove("speaking");voiceStatus.textContent="Your turn — answer by voice or typing."};
-  u.onerror=()=>{clinicianVisual.classList.remove("speaking");voiceStatus.textContent="Audio could not play. Tap Repeat to try again."};
+  u.onstart=()=>{
+    isSpeaking=true;
+    clinicianVisual.classList.add("speaking");
+    voiceStatus.textContent="Dr. Adam is speaking…";
+  };
+  u.onend=()=>{
+    isSpeaking=false;
+    clinicianVisual.classList.remove("speaking");
+    voiceStatus.textContent=sessionActive ? "Your turn — just speak. I’m listening automatically." : "Your turn — answer by voice or typing.";
+    if(sessionActive) setTimeout(startListening,350);
+  };
+  u.onerror=()=>{
+    isSpeaking=false;
+    clinicianVisual.classList.remove("speaking");
+    voiceStatus.textContent="Audio could not play. Tap Repeat to try again.";
+    if(sessionActive) setTimeout(startListening,350);
+  };
   speechSynthesis.speak(u);
 }
 
@@ -150,6 +165,9 @@ function submitAnswer(skipped=false){
   if(state.finished)return;
   const q=state.currentQuestion;
   if(!q)return;
+  clearSilenceTimer();
+  stopListening();
+  pendingAutoSubmit=false;
   const text=skipped?"Skipped":input.value.trim();
   if(!text)return;
   addPatient(text);
@@ -157,6 +175,7 @@ function submitAnswer(skipped=false){
   if(classifyRisk(text)){safetyBanner.classList.remove("hidden");}
   maybeAddFollowup(q,text);
   input.value="";
+  accumulatedTranscript="";
   if(!q.followup) state.index++;
   updateUI();
   setTimeout(askNext,350);
@@ -220,23 +239,111 @@ function finish(){
 
 function restart(){
   speechSynthesis?.cancel?.();
+  sessionActive=false;pendingAutoSubmit=false;isSpeaking=false;clearSilenceTimer();stopListening();startVoiceBtn.classList.remove("active","stop");startVoiceBtn.textContent="▶ Start hands-free session";
   state.index=0;state.answers={};state.extra=[];state.finished=false;state.currentQuestion=null;
   chat.innerHTML="";safetyBanner.classList.add("hidden");input.disabled=false;sendBtn.disabled=false;micBtn.disabled=false;input.value="";
   updateUI();askNext();
 }
 
+function clearSilenceTimer(){
+  if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null}
+}
+
+function armSilenceTimer(){
+  clearSilenceTimer();
+  if(!sessionActive)return;
+  silenceTimer=setTimeout(()=>{
+    if(!recognizing || !input.value.trim())return;
+    pendingAutoSubmit=true;
+    voiceStatus.textContent="Got it — moving to the next question…";
+    stopListening();
+  },2100);
+}
+
+function startListening(){
+  if(!recognition || !sessionActive || state.finished || isSpeaking || recognizing)return;
+  pendingAutoSubmit=false;
+  accumulatedTranscript="";
+  try{recognition.start()}catch(e){}
+}
+
+function stopListening(){
+  clearSilenceTimer();
+  if(recognition && recognizing){
+    try{recognition.stop()}catch(e){}
+  }
+}
+
 function initRecognition(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){voiceStatus.textContent="Voice input is not available in this browser. Typing works normally.";micBtn.disabled=true;return}
-  recognition=new SR();recognition.lang="en-US";recognition.interimResults=true;recognition.continuous=false;
-  recognition.onstart=()=>{recognizing=true;micBtn.classList.add("listening");voiceStatus.textContent="Listening… speak naturally."};
-  recognition.onresult=e=>{
-    let finalText="",interim="";
-    for(let i=e.resultIndex;i<e.results.length;i++){const tr=e.results[i][0].transcript;if(e.results[i].isFinal)finalText+=tr;else interim+=tr}
-    input.value=(finalText||interim).trim();
+  if(!SR){
+    voiceStatus.textContent="Hands-free voice input is not available in this browser. Typing still works.";
+    micBtn.disabled=true;
+    startVoiceBtn.disabled=true;
+    return;
+  }
+  recognition=new SR();
+  recognition.lang="en-US";
+  recognition.interimResults=true;
+  recognition.continuous=true;
+
+  recognition.onstart=()=>{
+    recognizing=true;
+    micBtn.classList.add("listening");
+    voiceStatus.textContent=sessionActive ? "Listening automatically… speak naturally." : "Listening… speak naturally.";
   };
-  recognition.onerror=e=>{voiceStatus.textContent="Voice input stopped. You can try again or type your answer.";};
-  recognition.onend=()=>{recognizing=false;micBtn.classList.remove("listening");voiceStatus.textContent="Type your answer or use the microphone.";input.focus()};
+
+  recognition.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const tr=e.results[i][0].transcript.trim();
+      if(e.results[i].isFinal){
+        accumulatedTranscript=(accumulatedTranscript+" "+tr).trim();
+      }else{
+        interim=(interim+" "+tr).trim();
+      }
+    }
+    input.value=(accumulatedTranscript+" "+interim).trim();
+    if(input.value.trim()) armSilenceTimer();
+  };
+
+  recognition.onerror=e=>{
+    recognizing=false;
+    micBtn.classList.remove("listening");
+    if(e.error==="not-allowed" || e.error==="service-not-allowed"){
+      sessionActive=false;
+      startVoiceBtn.classList.remove("active","stop");
+      startVoiceBtn.textContent="▶ Start hands-free session";
+      voiceStatus.textContent="Microphone permission is required for hands-free mode.";
+      return;
+    }
+    if(sessionActive && !isSpeaking && !state.finished){
+      voiceStatus.textContent="Reconnecting microphone…";
+      setTimeout(startListening,500);
+    }else{
+      voiceStatus.textContent="Voice input stopped. You can try again or type your answer.";
+    }
+  };
+
+  recognition.onend=()=>{
+    recognizing=false;
+    micBtn.classList.remove("listening");
+    clearSilenceTimer();
+
+    if(pendingAutoSubmit && input.value.trim()){
+      pendingAutoSubmit=false;
+      setTimeout(()=>submitAnswer(false),120);
+      return;
+    }
+
+    if(sessionActive && !isSpeaking && !state.finished){
+      voiceStatus.textContent="Listening automatically…";
+      setTimeout(startListening,350);
+    }else if(!state.finished){
+      voiceStatus.textContent="Type your answer or use the microphone.";
+      input.focus();
+    }
+  };
 }
 
 sendBtn.addEventListener("click",()=>submitAnswer(false));
@@ -244,16 +351,34 @@ document.getElementById("skipBtn").addEventListener("click",()=>submitAnswer(tru
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitAnswer(false)}});
 startVoiceBtn.addEventListener("click",()=>{
   voiceUnlocked=true;
-  startVoiceBtn.textContent="✓ Spoken intake on";
-  startVoiceBtn.classList.add("active");
+
+  if(sessionActive){
+    sessionActive=false;
+    pendingAutoSubmit=false;
+    stopListening();
+    speechSynthesis?.cancel?.();
+    isSpeaking=false;
+    clinicianVisual.classList.remove("speaking");
+    startVoiceBtn.textContent="▶ Start hands-free session";
+    startVoiceBtn.classList.remove("active","stop");
+    voiceStatus.textContent="Hands-free session paused. Press Start to continue.";
+    return;
+  }
+
+  sessionActive=true;
+  startVoiceBtn.textContent="■ Stop hands-free session";
+  startVoiceBtn.classList.add("active","stop");
+  voiceStatus.textContent="Hands-free mode is on.";
   if(state.currentQuestion){
     speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q);
+  }else{
+    askNext();
   }
 });
 document.getElementById("repeatBtn").addEventListener("click",()=>{voiceUnlocked=true;if(state.currentQuestion)speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q)});
 document.getElementById("restartBtn").addEventListener("click",restart);
 document.getElementById("copySummaryBtn").addEventListener("click",async()=>{const s=buildSummary();if(!s){showToast("No responses yet");return}try{await navigator.clipboard.writeText(s);showToast("Summary copied")}catch{showToast("Copy unavailable")}});
 document.getElementById("showProgress").addEventListener("change",updateUI);
-micBtn.addEventListener("click",()=>{if(!recognition)return;if(recognizing)recognition.stop();else recognition.start()});
+micBtn.addEventListener("click",()=>{if(!recognition)return;if(recognizing)stopListening();else{sessionActive=false;startVoiceBtn.classList.remove("active","stop");startVoiceBtn.textContent="▶ Start hands-free session";try{recognition.start()}catch(e){}}});
 
 initRecognition();renderDomains();updateUI();askNext();
