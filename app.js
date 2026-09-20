@@ -46,11 +46,11 @@ const questions = [
 
 const domainLabels=["Chief concern","HPI","Mood","Anxiety","Sleep","Mania screen","Psychosis screen","Trauma","Substances","Treatment","Medical","Safety"];
 const state={index:0,answers:{},extra:[],finished:false,currentQuestion:null};
-const chat=document.getElementById("chat"), input=document.getElementById("answerInput"), sendBtn=document.getElementById("sendBtn"), micBtn=document.getElementById("micBtn"), voiceStatus=document.getElementById("voiceStatus"), safetyBanner=document.getElementById("safetyBanner"), clinicianVisual=document.getElementById("clinicianVisual");
+const chat=document.getElementById("chat"), input=document.getElementById("answerInput"), sendBtn=document.getElementById("sendBtn"), voiceStatus=document.getElementById("voiceStatus"), safetyBanner=document.getElementById("safetyBanner"), clinicianVisual=document.getElementById("clinicianVisual");
 const progressBar=document.getElementById("progressBar"), progressText=document.getElementById("progressText"), sectionLabel=document.getElementById("sectionLabel"), completionPct=document.getElementById("completionPct"), currentSection=document.getElementById("currentSection"), currentGoal=document.getElementById("currentGoal"), domainGrid=document.getElementById("domainGrid"), domainCount=document.getElementById("domainCount"), snapshot=document.getElementById("snapshot");
 const toast=document.getElementById("toast");
-const startVoiceBtn=document.getElementById("startVoiceBtn");
-let recognition=null, recognizing=false, voiceUnlocked=false, sessionActive=false, isSpeaking=false, silenceTimer=null, pendingAutoSubmit=false, accumulatedTranscript="";
+const talkModeBtn=document.getElementById("talkModeBtn"), typeModeBtn=document.getElementById("typeModeBtn"), typeComposer=document.getElementById("typeComposer"), voiceComposer=document.getElementById("voiceComposer"), liveTranscript=document.getElementById("liveTranscript"), modeHelp=document.getElementById("modeHelp");
+let recognition=null, recognizing=false, voiceUnlocked=false, sessionActive=false, isSpeaking=false, silenceTimer=null, pendingAutoSubmit=false, accumulatedTranscript="", answerMode="type";
 
 function showToast(msg){toast.textContent=msg;toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1500)}
 function escapeText(v){return String(v||"").replace(/[<>]/g,"")}
@@ -93,7 +93,7 @@ function askNext(){
   const text=prefix+q.q;
   addDoctor(text);
   updateUI();
-  if(document.getElementById("autoSpeak").checked && voiceUnlocked) speak(text);
+  if(answerMode==="talk" && voiceUnlocked) speak(text);
 }
 
 function selectBritishMaleVoice(){
@@ -176,6 +176,7 @@ function submitAnswer(skipped=false){
   maybeAddFollowup(q,text);
   input.value="";
   accumulatedTranscript="";
+  liveTranscript.textContent="Your answer will appear here while you speak.";
   if(!q.followup) state.index++;
   updateUI();
   setTimeout(askNext,350);
@@ -234,14 +235,14 @@ function finish(){
   chat.appendChild(card);scrollChat();
   card.querySelector("#reviewSummary").onclick=()=>{const s=buildSummary();alert(s||"No structured responses captured.");};
   card.querySelector("#startOverInline").onclick=restart;
-  input.disabled=true;sendBtn.disabled=true;micBtn.disabled=true;
+  input.disabled=true;sendBtn.disabled=true;talkModeBtn.disabled=true;typeModeBtn.disabled=true;
 }
 
 function restart(){
   speechSynthesis?.cancel?.();
-  sessionActive=false;pendingAutoSubmit=false;isSpeaking=false;clearSilenceTimer();stopListening();startVoiceBtn.classList.remove("active","stop");startVoiceBtn.textContent="▶ Start hands-free session";
+  sessionActive=false;pendingAutoSubmit=false;isSpeaking=false;clearSilenceTimer();stopListening();answerMode="type";typeModeBtn.classList.add("active");talkModeBtn.classList.remove("active");typeComposer.classList.remove("hidden");voiceComposer.classList.add("hidden");
   state.index=0;state.answers={};state.extra=[];state.finished=false;state.currentQuestion=null;
-  chat.innerHTML="";safetyBanner.classList.add("hidden");input.disabled=false;sendBtn.disabled=false;micBtn.disabled=false;input.value="";
+  chat.innerHTML="";safetyBanner.classList.add("hidden");input.disabled=false;sendBtn.disabled=false;talkModeBtn.disabled=false;typeModeBtn.disabled=false;input.value="";liveTranscript.textContent="Your answer will appear here while you speak.";
   updateUI();askNext();
 }
 
@@ -261,7 +262,7 @@ function armSilenceTimer(){
 }
 
 function startListening(){
-  if(!recognition || !sessionActive || state.finished || isSpeaking || recognizing)return;
+  if(!recognition || answerMode!=="talk" || !sessionActive || state.finished || isSpeaking || recognizing)return;
   pendingAutoSubmit=false;
   accumulatedTranscript="";
   try{recognition.start()}catch(e){}
@@ -278,8 +279,7 @@ function initRecognition(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){
     voiceStatus.textContent="Hands-free voice input is not available in this browser. Typing still works.";
-    micBtn.disabled=true;
-    startVoiceBtn.disabled=true;
+    talkModeBtn.disabled=true;
     return;
   }
   recognition=new SR();
@@ -289,7 +289,7 @@ function initRecognition(){
 
   recognition.onstart=()=>{
     recognizing=true;
-    micBtn.classList.add("listening");
+    voiceComposer.classList.add("listening");
     voiceStatus.textContent=sessionActive ? "Listening automatically… speak naturally." : "Listening… speak naturally.";
   };
 
@@ -304,16 +304,16 @@ function initRecognition(){
       }
     }
     input.value=(accumulatedTranscript+" "+interim).trim();
+    liveTranscript.textContent=input.value.trim() || "Listening…";
     if(input.value.trim()) armSilenceTimer();
   };
 
   recognition.onerror=e=>{
     recognizing=false;
-    micBtn.classList.remove("listening");
+    voiceComposer.classList.remove("listening");
     if(e.error==="not-allowed" || e.error==="service-not-allowed"){
       sessionActive=false;
-      startVoiceBtn.classList.remove("active","stop");
-      startVoiceBtn.textContent="▶ Start hands-free session";
+      setAnswerMode("type", false);
       voiceStatus.textContent="Microphone permission is required for hands-free mode.";
       return;
     }
@@ -321,13 +321,13 @@ function initRecognition(){
       voiceStatus.textContent="Reconnecting microphone…";
       setTimeout(startListening,500);
     }else{
-      voiceStatus.textContent="Voice input stopped. You can try again or type your answer.";
+      voiceStatus.textContent=answerMode==="talk"?"Voice input paused; reconnecting…":"Type your answer and press Send.";
     }
   };
 
   recognition.onend=()=>{
     recognizing=false;
-    micBtn.classList.remove("listening");
+    voiceComposer.classList.remove("listening");
     clearSilenceTimer();
 
     if(pendingAutoSubmit && input.value.trim()){
@@ -340,7 +340,7 @@ function initRecognition(){
       voiceStatus.textContent="Listening automatically…";
       setTimeout(startListening,350);
     }else if(!state.finished){
-      voiceStatus.textContent="Type your answer or use the microphone.";
+      voiceStatus.textContent=answerMode==="talk"?"Listening automatically…":"Type your answer and press Send.";
       input.focus();
     }
   };
@@ -349,36 +349,44 @@ function initRecognition(){
 sendBtn.addEventListener("click",()=>submitAnswer(false));
 document.getElementById("skipBtn").addEventListener("click",()=>submitAnswer(true));
 input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitAnswer(false)}});
-startVoiceBtn.addEventListener("click",()=>{
-  voiceUnlocked=true;
+function setAnswerMode(mode, replayQuestion=true){
+  answerMode=mode;
+  const talk=mode==="talk";
+  talkModeBtn.classList.toggle("active",talk);
+  typeModeBtn.classList.toggle("active",!talk);
+  typeComposer.classList.toggle("hidden",talk);
+  voiceComposer.classList.toggle("hidden",!talk);
 
-  if(sessionActive){
+  if(talk){
+    voiceUnlocked=true;
+    sessionActive=true;
+    modeHelp.textContent="Talk mode is hands-free: Dr. Adam speaks, then listens, and your answer sends automatically after a short pause.";
+    voiceStatus.textContent="Talk mode is on.";
+    if(replayQuestion && state.currentQuestion){
+      speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q);
+    }else if(!isSpeaking){
+      setTimeout(startListening,250);
+    }
+  }else{
     sessionActive=false;
     pendingAutoSubmit=false;
+    clearSilenceTimer();
     stopListening();
     speechSynthesis?.cancel?.();
     isSpeaking=false;
     clinicianVisual.classList.remove("speaking");
-    startVoiceBtn.textContent="▶ Start hands-free session";
-    startVoiceBtn.classList.remove("active","stop");
-    voiceStatus.textContent="Hands-free session paused. Press Start to continue.";
-    return;
+    voiceComposer.classList.remove("listening");
+    modeHelp.textContent="Type your answer and press Send, or choose Talk for a fully hands-free conversation.";
+    input.focus();
   }
+}
 
-  sessionActive=true;
-  startVoiceBtn.textContent="■ Stop hands-free session";
-  startVoiceBtn.classList.add("active","stop");
-  voiceStatus.textContent="Hands-free mode is on.";
-  if(state.currentQuestion){
-    speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q);
-  }else{
-    askNext();
-  }
-});
+talkModeBtn.addEventListener("click",()=>setAnswerMode("talk",true));
+typeModeBtn.addEventListener("click",()=>setAnswerMode("type",false));
 document.getElementById("repeatBtn").addEventListener("click",()=>{voiceUnlocked=true;if(state.currentQuestion)speak((transitionFor(state.currentQuestion)||"")+state.currentQuestion.q)});
 document.getElementById("restartBtn").addEventListener("click",restart);
 document.getElementById("copySummaryBtn").addEventListener("click",async()=>{const s=buildSummary();if(!s){showToast("No responses yet");return}try{await navigator.clipboard.writeText(s);showToast("Summary copied")}catch{showToast("Copy unavailable")}});
 document.getElementById("showProgress").addEventListener("change",updateUI);
-micBtn.addEventListener("click",()=>{if(!recognition)return;if(recognizing)stopListening();else{sessionActive=false;startVoiceBtn.classList.remove("active","stop");startVoiceBtn.textContent="▶ Start hands-free session";try{recognition.start()}catch(e){}}});
 
-initRecognition();renderDomains();updateUI();askNext();
+
+initRecognition();setAnswerMode("type",false);renderDomains();updateUI();askNext();
