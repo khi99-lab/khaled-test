@@ -48,12 +48,7 @@
             <h1>Dr. Adam</h1>
             <p>Virtual intake guide • British male voice</p>
             <div class="voice-controls">
-              <button id="startVoiceBtn" class="start-voice-btn" title="Start hands-free intake">▶ Start hands-free session</button><button id="repeatBtn" class="mini-btn" title="Repeat question">🔊 Repeat</button>
-              <label class="toggle">
-                <input type="checkbox" id="autoSpeak" checked />
-                <span></span>
-                Auto voice
-              </label>
+              <button id="repeatBtn" class="mini-btn" title="Repeat question">🔊 Repeat question</button>
             </div>
           </div>
         </div>
@@ -78,13 +73,30 @@
           </div>
 
           <div class="composer">
-            <div class="composer-row">
-              <button id="micBtn" class="mic-btn" title="Answer by voice" aria-label="Answer by voice">🎙</button>
-              <textarea id="answerInput" rows="2" placeholder="Answer naturally, just like you are talking to a clinician…"></textarea>
+            <div class="answer-mode-picker">
+              <span>How would you like to answer?</span>
+              <div class="mode-buttons">
+                <button id="talkModeBtn" class="mode-btn">🎙 Talk</button>
+                <button id="typeModeBtn" class="mode-btn active">⌨ Type</button>
+              </div>
+            </div>
+
+            <div id="voiceComposer" class="voice-composer hidden">
+              <div class="listening-orb"><span></span></div>
+              <div class="voice-copy">
+                <strong id="voiceModeTitle">Hands-free talk mode</strong>
+                <span id="voiceStatus">Choose Talk once and then just have the conversation.</span>
+                <div id="liveTranscript" class="live-transcript">Your answer will appear here while you speak.</div>
+              </div>
+            </div>
+
+            <div id="typeComposer" class="composer-row type-composer">
+              <textarea id="answerInput" rows="2" placeholder="Type your answer here…"></textarea>
               <button id="sendBtn" class="send-btn">Send</button>
             </div>
+
             <div class="composer-help">
-              <span id="voiceStatus">Press Start hands-free session once. After that, just talk naturally.</span>
+              <span id="modeHelp">Type your answer and press Send, or choose Talk for a fully hands-free conversation.</span>
               <button id="skipBtn">Skip for now</button>
             </div>
           </div>
