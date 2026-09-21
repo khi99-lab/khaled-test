@@ -200,11 +200,83 @@ def worker(arm,root,model_path):
  w.env["confirmation_version"]=VERSION
  w.env["replicate_seed"]=seed
  write_json(Path(root)/arm/"environment.json",w.env)
- result=w.run()
- result["replicate_seed"]=seed
- result["harder_holdout"]=True
- result["scoring_note"]="Optional outer JSON code fences are semantically parsed but tracked separately."
+
+ # Establish training integrity AFTER baseline inference. Some current
+ # transformers/PEFT runtime paths lazily materialize/cast frozen Q/K/V
+ # bias tensors during first inference; those are not optimizer updates.
+ # We record that separately and then require byte-identical frozen state
+ # from immediately before training through immediately after training.
+ refs=w.baseline()
+ w.log("baseline_complete")
+ initial_load_hash=w.base_before
+ pretrain_hash=w.base_hash()
+ initial_runtime_changed=sorted(k for k in initial_load_hash if initial_load_hash[k]!=pretrain_hash.get(k))
+ write_json(Path(root)/arm/"frozen_base_after_baseline.json",pretrain_hash)
+ write_json(Path(root)/arm/"runtime_materialization_diff.json",{
+   "changed_count":len(initial_runtime_changed),
+   "changed_keys":initial_runtime_changed,
+   "note":"Observed before optimizer training; tracked separately from training integrity."
+ })
+ w.base_before=pretrain_hash
+ write_json(Path(root)/arm/"frozen_base_before_training.json",pretrain_hash)
+
+ losses=w.train()
+ w.log("training_complete",optimizer_steps=len(losses))
+ after_hash=w.base_hash()
+ write_json(Path(root)/arm/"frozen_base_after.json",after_hash)
+ training_unchanged=after_hash==pretrain_hash
+ changed_adapter=sum(v!=w.initial_adapter_hash.get(k) for k,v in w.adapter_hash().items())
+ write_json(Path(root)/arm/"integrity.json",{
+   "initial_to_postbaseline_runtime_changes":len(initial_runtime_changed),
+   "frozen_base_and_quant_state_unchanged_during_training":training_unchanged,
+   "base_hash_entries":len(after_hash),
+   "changed_adapter_tensors":changed_adapter,
+   "original_checkpoint_overwritten":False,
+   "merge_performed":False
+ })
+ if not training_unchanged or not changed_adapter:
+  raise RuntimeError("TRAINING_WEIGHT_INTEGRITY_OR_NO_UPDATE_FAILURE")
+
+ after={name:w.generate(w.data[name],"after_"+name) for name in ["dev","test","regression"]}
+ with w.model.disable_adapter():
+  back=w.generate(w.data["test"][:4],"trained_adapter_disabled_check")
+ lookup={r["id"]:r for r in refs["test"]}
+ restore=all(r["output"]==lookup[r["id"]]["output"] for r in back)
+ if not restore:
+  raise RuntimeError("DISABLED_ADAPTER_REFERENCE_CHANGED")
+
+ metrics={"baseline":{k:v5.aggregate(v) for k,v in refs.items()},
+          "after":{k:v5.aggregate(v) for k,v in after.items()}}
+ b=metrics["baseline"]["test"]["task_all"]; a=metrics["after"]["test"]["task_all"]
+ regb=metrics["baseline"]["regression"]["general"]; rega=metrics["after"]["regression"]["general"]
+ promising=(a["status_correct"]>=b["status_correct"]+5 and
+            a["unassessed_to_absent"]<=b["unassessed_to_absent"] and
+            a["uncertain_to_certain"]<=b["uncertain_to_certain"] and
+            a["evidence_exact"]>=b["evidence_exact"]-1 and
+            rega["exact"]>=regb["exact"]-1)
+ result={
+   "status":"COMPLETE_RESEARCH_ONLY","arm":arm,"metrics":metrics,
+   "optimizer_steps":len(losses),
+   "frozen_base_unchanged":training_unchanged,
+   "disabled_adapter_restores_reference":restore,
+   "changed_adapter_tensors":changed_adapter,
+   "runtime_materialization_changes_before_training":len(initial_runtime_changed),
+   "pilot_promising_predeclared_gate":promising,
+   "clinical_deployment_approved":False,
+   "elapsed_seconds":round(time.monotonic()-w.start,2),
+   "replicate_seed":seed,
+   "harder_holdout":True,
+   "scoring_note":"Optional outer JSON code fences are semantically parsed but tracked separately.",
+   "limitations":[
+     "synthetic context-rich holdout, not clinically validated",
+     "QLoRA baseline, not earlier FP16 comparison",
+     "runtime materialization before training is recorded separately from optimizer integrity",
+     "general regression panel is narrow",
+     "no evidence of diagnostic or medication competence from this confirmation"
+   ]
+ }
  write_json(Path(root)/arm/"result.json",result)
+ w.log("COMPLETE_RESEARCH_ONLY")
  return result
 
 def summarize_arm(root,arm):
@@ -301,7 +373,7 @@ def launch(root):
  ref=baseline_files[0]
  for other in baseline_files[1:]:
   baseline_agreement &= all(x["output"]==y["output"] for x,y in zip(ref,other))
- base_hashes=[json.loads((root/a/"frozen_base_before.json").read_text()) for a in SEEDS]
+ base_hashes=[json.loads((root/a/"frozen_base_before_training.json").read_text()) for a in SEEDS]
  base_hash_match=all(h==base_hashes[0] for h in base_hashes[1:])
  ready=all(s["pass"] for s in summaries.values()) and baseline_agreement and base_hash_match
  result={"status":"COMPLETE_RESEARCH_ONLY","replicates":summaries,
